@@ -61,11 +61,11 @@ if __name__ == "__main__":
     for fpath in args.files:
         if not os.path.exists(fpath):
             print("Input file: %s does not exists." % fpath)
-            exit(0)
+            exit(1)
 
     if not os.path.exists(args.genome):
         print("Genome: %s does not exists." % args.genome)
-        exit(0)
+        exit(1)
         
     
     a = Analysis(args)

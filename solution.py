@@ -149,12 +149,13 @@ class Solution:
     """
     Stores parameters in a separate file.
     """
-    def _storeParameters(self):
+    def _storeParameters(self, err):
         f = open(self._folder + self._args.output, "w")
 
-        f.write("Input file: %s\n\n" % self._bnx_path)
+        f.write("Input file: %s\n" % self._bnx_path)
+        f.write("Genome file: %s\n\n" % self._g_path)
 
-        f.write("Parameter of Bezier curve X0=[x0,y0] and X1=[x1,y1]")
+        f.write("Parameter of Bezier curve X0=[x0,y0] and X1=[x1,y1]\n")
         f.write("X0=[%.8f,%.8f]\n" % (self._opt_x[0], self._opt_x[1]))
         f.write("X1=[%.8f,%.8f]\n\n" % (self._opt_x[2], self._opt_x[3]))
 
@@ -162,9 +163,9 @@ class Solution:
         f.write("Insertion rate: %.4f\n" % self._opt_x[5])
         f.write("EBPP = %.0f\n" % self._opt_x[6])
         f.write("Digestion probability for fragment lengths greater than Bezier limit: %.4f\n" % self._opt_x[7])
+        f.write("OBPP = %.0f\n\n" % self._opt_x[8])
 
-        if self._args.de_obpp:
-            f.write("OBPP = %.0f\n" % self._opt_x[8])        
+        f.write("Mean absolute error: %.3f" % err)
         
         f.close()
 
@@ -195,7 +196,9 @@ class Solution:
         if self._args.store_dist:
             self._storeDistribution(results)
 
-        self._storeParameters()
+        #compute mean absolute error
+        err = mae(results[2].p0ti, self.bnxp, self._limit)
+        self._storeParameters(err)
 
         
         
