@@ -7,3 +7,4 @@ Software for prediction of errors in optical mapping by Bionano Saphyr instrumen
 
 # Example
 * Minimal running example: python3 main.py all.bnx -g genome.cmap 
+* Store fragment length distribution: python3 main.py all.bnx -g genome.cmap --store_dist
