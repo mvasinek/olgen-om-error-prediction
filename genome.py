@@ -1,3 +1,7 @@
+"""
+Class responsible for representation of reference genome fragment lengths distribution.
+- class assumes human genome with 24 chromosomes.
+"""
 class OMGenome:
     def __init__(self, g_path):
         self.genome_path = g_path
@@ -10,8 +14,7 @@ class OMGenome:
         self.p0 = self.distP(self.f0, self.max_d, self.dlen)
 
     """
-    Naparsuje pozice z cmap souboru
-    - nebudeme brat v potaz posledni pozici a jeji vzdalenost ke konci chromozomu
+    Parse positions from reference cmap file.
     """
     def parsePositions(self):
         f = open(self.genome_path, "r")
@@ -29,7 +32,7 @@ class OMGenome:
             line_values = line.strip().split("\t")
             self.chrlen[int(line_values[0])-1] = int(float(line_values[1]))                
 
-            #znacka znaci konec chromozomu
+            #end of last chromosome marker.
             if int(line_values[3]) > int(line_values[2]):
                 if line_values[0] == "24":
                     break
@@ -41,12 +44,18 @@ class OMGenome:
 
         return pos
 
+    """
+    Returns genome size
+    """
     def genomeSize(self):
         gs = 0
         for csize in self.chrlen:
             gs += csize
         return gs
 
+    """
+    Returns number of labels in the genome.
+    """
     def labelsCount(self):
         lc = 0
         for chrpos in self.pos:
@@ -54,7 +63,7 @@ class OMGenome:
         return lc
 
     """
-    Prevedeme pozice na pole vzdalenosti
+    Converts positions of restriction sites into distribution of fragment lengths.
     """
     def convertToDist(self, positions):
         d = []
@@ -68,7 +77,7 @@ class OMGenome:
         return d
 
     """
-    Nalezneme nejvetsi vzdalenost
+    Finds the largest distance between restriction sites.
     """
     def maxDistance(self, ds):
         maximum = 0
@@ -78,7 +87,7 @@ class OMGenome:
         return maximum
 
     """
-    Spocitame cetnosti vzdalenosti znacek
+    Counts frequency of fragment lengths.
     """
     def distF(self, dist, maxd):
         f0 = [0]*(maxd+1)
@@ -87,7 +96,7 @@ class OMGenome:
         return f0
 
     """
-    Spocitame rozdeleni pravdepodobnosti
+    Counts probability distribution of fragment lengths.
     """
     def distP(self, f0, maxd, dlen):
         p0 = [0]*(maxd+1)

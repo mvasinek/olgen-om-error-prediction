@@ -12,19 +12,29 @@ from single_run import SingleRun
 
 from scipy.optimize import rosen, differential_evolution
 
+"""
+mean squared error between two lists of values a,b
+lim - variable limiting the index in a,b
+"""
 def mse(a,b,lim):
     mse = 0
     for i in range(lim):
         mse += (a[i]-b[i])**2
     return mse/lim
 
+"""
+mean absolute error between two lists of values a,b
+lim - variable limiting the index in a,b
+"""
 def mae(a,b,lim):
     mae = 0
     for i in range(lim):
         mae += abs(a[i]-b[i])
     return mae
 
-
+"""
+Class responsible for start of simulation using differential evolution algorithm.
+"""
 class Solution:
     def __init__(self, genome_path, bnx_path, args):
         self._g_path = genome_path
@@ -42,6 +52,9 @@ class Solution:
     def bnx(self):
         return self._bnx_name
 
+    """
+    Returns tupple: (folder of input bnx, bnx file name)
+    """
     def __parsePath(self, bnx):
         if "\\" in bnx:
             #windows path
@@ -53,7 +66,11 @@ class Solution:
             return ("/".join(v[:-1]) + "/", v[-1])
 
     """
-    sesbira vsechna p0
+    Method first collects all arguments from argparse objects and initializes differential evoluion.
+    Returns three objects with distributions of fragment lengths>
+    - orig -  from reference genome
+    - bnxf - fom bnx file
+    - onea - from simulation based on optimal fit by differential evolution
     """
     def _collect(self):
         #original bnx
@@ -95,6 +112,12 @@ class Solution:
             
         return (orig, bnxf, onea)
 
+    """
+    Fitness function for differential evolution. Fitness is evaluated by comparison of bnx fragment lengths distribution 
+    with simulated one feeded by parameters given by differential evolution.
+
+    Returns mean absolute error
+    """
     def _fitness(self, x):
         x0 = x[0]
         y0 = x[1]
@@ -123,6 +146,9 @@ class Solution:
         
         return mae_r
 
+    """
+    Stores parameters in a separate file.
+    """
     def _storeParameters(self):
         f = open(self._folder + self._args.output, "w")
 
@@ -142,6 +168,10 @@ class Solution:
         
         f.close()
 
+
+    """
+    Stores fragment lengths distribution.
+    """
     def _storeDistribution(self, results):
         f = open(self._folder + self._bnx_name + ".csv", "w")
 
@@ -157,7 +187,7 @@ class Solution:
         f.close()
         
     """
-    pripravi a ulozi biny do souboru
+    Public method to call storage of distribution(optional) and parameters(mandatory)
     """    
     def store(self):
         results = self._collect()

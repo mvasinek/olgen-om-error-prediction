@@ -7,6 +7,9 @@ from multiprocessing import Queue, Process, freeze_support
 
 from solution import Solution
 
+"""
+Class responsible for simulation start over list of input files.
+"""
 class Analysis:
     """
     args - collection of input arguments by argparse
@@ -24,6 +27,9 @@ class Analysis:
             solutions.append(Solution(self._args.genome, bnx, self._args))
         return solutions
 
+    """
+    Starts simulation for each input file as a separate process.
+    """
     def store(self):
         procs = []
         for solution in self._solutions:

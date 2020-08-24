@@ -2,8 +2,10 @@ import argparse
 import os
 
 """
+Copyright
 Michal Vasinek
-19.8.2020 Ostrava
+michal.vasinek@vsb.cz
+19.8.2020 Ostrava, Czech Republic
 """
 
 from analysis import Analysis

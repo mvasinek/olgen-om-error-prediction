@@ -1,3 +1,6 @@
+"""
+Class representing BNX file fragment length distribution.
+"""
 class BNX:
     def __init__(self, filepath):
         self.path = filepath
@@ -5,6 +8,9 @@ class BNX:
         self.dlen = len(self.diffs)
         self.p0 = self.distP(self.diffs, self.dlen)
 
+    """
+    Method collects all fragment lengths in input bnx file.
+    """
     def collectD(self):
         f = open(self.path, "r")
 
@@ -33,6 +39,9 @@ class BNX:
 
         return diffs
 
+    """
+    Computes probability distribution of fragment lengths.
+    """
     def distP(self, diffs, dlen):
         imax = 0
 

@@ -11,11 +11,16 @@ from multiprocessing import Process, freeze_support
 
 from genome import OMGenome
 
+
+"""
+Class responsible for conversion of fragment lengths into pixel image and back into operating resolution.
+Methods mimics function of capturing system.
+"""
 class PhasedResolution(OMGenome):
     def __init__(self, g_path, pos=None, chrlen=None, resolution=450, ebpp=500):
-        #base pair per pixel
+        #expected base pairs per pixel
         self.bpp = resolution
-        #expcted bpp
+        #operating resolution - names differs from the one in the article
         self.ebpp = ebpp
         self.genome_path = g_path
 
@@ -37,7 +42,7 @@ class PhasedResolution(OMGenome):
         self.p0ti = self.ebppTriangleInterpolation()        
 
     """
-    bitmapa pro fazovy posun
+    Bitmap for phased image.
     """
     def phasedImage(self, off):
         phased_i = []
@@ -48,7 +53,7 @@ class PhasedResolution(OMGenome):
         return phased_i
 
     """
-    Vytvori pixelovy obrazek z pole pozic pro kazdy chromozom
+    Creates pixel image from positions in a sequence.
     """
     def pixelImage(self, pos, off):
         c_id = 0
@@ -76,11 +81,10 @@ class PhasedResolution(OMGenome):
 
             c_id += 1            
 
-        #return pi
         return (pi, pi_list)
 
     """
-    prevede mapu pixelu na vzdalenosti pixelu
+    Converts pixel map into distribution of bright pixel distaces.
     """
     def pixelToDist(self, pi, phased_i):
         d = []
@@ -88,30 +92,30 @@ class PhasedResolution(OMGenome):
             chromosome = pi[c_id]
             phased = phased_i[c_id]
             
-            #najdi prvni nenulovy prvek
+            #find first non/zero entry
             last_pos = 0
             last_ipos = 0
             for i in range(len(chromosome)):
                 if chromosome[i] != 0:
                     last_ipos = i
-                    #pokud pixel neni fazove posunut pak ulozime i
+                    #if pixel is not phase shifted then store i
                     if phased[i] == 0:
                         last_pos = i
-                    #pokud je pixel fazove posunut pak ulozime i + 0.5
+                    #if pixel is phased shifter then store i + 0.5
                     else:
                         last_pos = i + 0.5
                     break
 
-            #postupnym pruchodem dopocti vsechny vzdalenosti
+            #compute all distances
             for i in range(last_ipos+1, len(chromosome)):
                 if chromosome[i] != 0:
                     last_ipos = i
                     daux = None
-                    #neni fazovy posun budeme ukladat d*2 => sude hodnoty d budou bez fazoveho posunu a nebo s dvojim fazovym posunem, kazdopadne zajistime, ze bude celociselny
+                    #not a phase shift d*2 => even values of d are without phase shit or with double phase shift, ensure it is integer.
                     if phased[i] == 0:
                         daux = 2*(i - last_pos)
                         last_pos = i
-                    #je fazove posunut
+                    #phase shift
                     else:
                         daux = 2*(i + 0.5 - last_pos)
                         last_pos = i + 0.5
@@ -120,6 +124,9 @@ class PhasedResolution(OMGenome):
 
         return d
 
+    """
+    Detect a sequence of consecutive bright pixels and replace by an average.
+    """
     def detectSequence(self, chromosome, phased, i):
         gap = 0
         j = i+1
@@ -137,7 +144,7 @@ class PhasedResolution(OMGenome):
             if k < len(chromosome):
                 chromosome[k] = 0
 
-        #nastav 1 na prumer
+        #set l on average
         d = last_one - i
         i_dh = i + d // 2
         chromosome[i_dh] = 1
@@ -148,6 +155,9 @@ class PhasedResolution(OMGenome):
                 
         return last_one
 
+    """
+    Performs averaging procedure over all positions in image.
+    """
     def averageRuns(self, pi, phased_i):
         c_id = 0
         for c_id in range(len(pi)):
@@ -165,11 +175,10 @@ class PhasedResolution(OMGenome):
         return pi
 
     """
-    vypocet vsech moznych d pres vsechny offsety
-    vraci bbp krat vice hodnot nez original
+    Compute distances over several offsets.
     """
     def discreteTransform(self, positions):        
-        #pixel image pro kazdy offset
+        #pixel image for selected offsets
         d = []
         
         for offset in range(self.bpp):
@@ -185,10 +194,9 @@ class PhasedResolution(OMGenome):
         return d
 
     """
-    trojuhelnikova interpolace
+    Triangle distribution interpretation of inter pixel distances.
     """
     def ebppTriangleInterpolation(self):
-        #nemusime nasobit dvema, vzdalenosti budou umenseny na polovinu, kterou jsme pridali v pixelToDist
         dsize = (self.max_d+1)*self.ebpp
         if dsize < 25000:
             dsize = 25000
@@ -198,11 +206,10 @@ class PhasedResolution(OMGenome):
         denom = (self.ebpp-1)*(self.ebpp)+self.ebpp
 
         for i in range(0,self.max_d+1):
-            #doplnime rovnomerne
             d = 1
-            #bez fazoveho posunu
+            #no phase shift
             if i % 2 == 0:                
-                #puvodni vzdalenost
+                #former distance
                 i0 = int(i/2)
                 for j in range(i0*self.ebpp + 1, (i0+2)*self.ebpp):
                     if j < (i0+1)*self.ebpp:
@@ -225,6 +232,9 @@ class PhasedResolution(OMGenome):
                 
         return p0ti
 
+    """
+    Scale by ratio between two bpp. - Not used now.
+    """
     def scale(self, p0, bpp0, bpp1):
         p1 = [0]*25001
         r = bpp1/bpp0

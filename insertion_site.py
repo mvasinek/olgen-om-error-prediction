@@ -7,6 +7,10 @@ from multiprocessing import Queue, Process, freeze_support
 
 from genome import OMGenome
 
+"""
+Class performs T_i transformation.
+Inserts restriction sites by random based on insertion rate.
+"""
 class InsertionSite(OMGenome):
     def __init__(self, gpath, chrlen = None, pos=None):
         if gpath != None:
@@ -23,20 +27,21 @@ class InsertionSite(OMGenome):
         self.efp = 0
 
     """
-    Spocitame ocekavanou cetnost fp znacek.
-    - ffp = pocetZnacek*ir
-    - pravdepodobnost ze se na konkretni pozici vyskytuje znacka pfp = ffp/gsize-pocetZnacek
+    Computes probability that particular position in reference genome contains false restriction site.
     """
     def insertionRate(self, ir):
         self.ir = ir
         self.pfp = (self.lc*self.ir)/(self.gsize-self.lc)
 
     """
-    Vraci ocekavanou cetnost fp
+    Returns expected number of false positive labels
     """
     def expectedInsertions(self, ir):
        self.efp = ir*self.lc         
 
+    """
+    Inserts false positive sites based on insertion rate into reference sequence restriction sites positions.
+    """
     def processOne(self, queue):
         p1 = []
         paux = []

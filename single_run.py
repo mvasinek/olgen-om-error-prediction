@@ -11,6 +11,10 @@ from missing_site import MissingSite
 from insertion_site import InsertionSite
 from phased_resolution import PhasedResolution
 
+
+"""
+Class responsible for performing a single simulation.
+"""
 class SingleRun(OMGenome):
     def __init__(self, gpath, args, irate, iterations, x0, y0, x1, y1, scale, resolution=450, miss_konst=1.0, ebpp=500):
         self.genome_path = gpath
@@ -31,6 +35,9 @@ class SingleRun(OMGenome):
 
         self.p0ti = self.processFull()
 
+    """
+    Simulation is performed self.iterations times, each by separate process.
+    """
     def processFull(self):
         pt = None
 
@@ -58,6 +65,9 @@ class SingleRun(OMGenome):
 
         return pt
 
+    """
+    Consecutively applies sequence of three transformations on the reference genome distributions.
+    """
     def processOne(self, pqueue):
         #proved nad pozicemi missing site
         mi = MissingSite(None, self.miss_k)

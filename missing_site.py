@@ -5,6 +5,9 @@ import random
 
 sign = lambda x: math.copysign(1, x)
 
+"""
+Functions responsible for Bezier function computation.
+"""
 def b(x,y):
     ts = [i/100 for i in range(101)]
     r = []
@@ -77,6 +80,9 @@ def cubicRoots(p1,p2,p3,p4):
     return list(filter(lambda x: x >= 0 and x <= 1.0, t))
 
 
+"""
+Intersection of Bezier function with particular fragment length.
+"""
 def findIntersection(points, line):
     bx = bezierCoefficients(points[0][0], points[1][0], points[2][0], points[3][0])
     by = bezierCoefficients(points[0][1], points[1][1], points[2][1], points[3][1])
@@ -118,6 +124,9 @@ def findIntersection(points, line):
 
     return points
 
+"""
+Class responsible for introducing missing site error by removing restriction sites by digestion probability.
+"""
 class MissingSite(OMGenome):
     def __init__(self, gpath, miss_k):
         if gpath != None:
@@ -126,9 +135,16 @@ class MissingSite(OMGenome):
         self.lim = 25000
         self._pd = None
 
+    """
+    Sets particular digestion probability.
+    Function can be used to enter arbitrary pd as an array of values for all fragment lengths up to self.lim.
+    """
     def setPD(self, pd):
         self._pd = pd
 
+    """
+    Computatition of PD based on parameterized Bezier function.
+    """
     def bezierPD(self, x0, y0, x1, y1, scale):
         x = (0,1,0,1)
         y = (0,0,1,1)
@@ -147,6 +163,9 @@ class MissingSite(OMGenome):
 
         return pd
 
+    """
+    Digestion probability given as an average of two neighbouring fragmnet lengths.
+    """
     def pd(self, d1, d2):
         davg = round((d1+d2)/2)
 
@@ -156,7 +175,7 @@ class MissingSite(OMGenome):
         return self._pd[davg]
 
     """
-    vraci true/false pokud je na zaklade dvou vzdalenosti bod vlozen nebo ne
+    Returns True/False if the site is digested or not
     """
     def digested(self, d1, d2):
         p = self.pd(d1, d2)
@@ -167,7 +186,7 @@ class MissingSite(OMGenome):
         return False    
 
     """
-    jedna iterace missing algoritmu
+    Processes missing site transformation.
     """
     def processOne(self, queue):
         p1 = []
@@ -176,8 +195,8 @@ class MissingSite(OMGenome):
         for ps in self.pos:
             p1_c = []
             l = len(ps)
-            
-            #nejdrive osetrime prvni bod
+
+            #handle first point
             d_l = ps[0]
             d_r = ps[1]-ps[0]
 
@@ -191,7 +210,7 @@ class MissingSite(OMGenome):
                 if self.digested(d_l, d_r):
                     p1_c.append(ps[i])
 
-            #vyresime posledni bod
+            #handle last point
             d_l = d_r
             d_r = self.chrlen[chr_id] - ps[l-1]
 
