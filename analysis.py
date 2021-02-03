@@ -5,7 +5,7 @@ import time
 
 from multiprocessing import Queue, Process, freeze_support
 
-from solution import Solution
+from solution import Solution, LaplaceSolution, NoCameraSolution, OnlyCorrectionSolution, InsertionCorrectionSolution, IndelsCorrectionSolution, BezierCorrectionSolution, IndelsSizingCorrectionSolution
 
 """
 Class responsible for simulation start over list of input files.
@@ -24,7 +24,22 @@ class Analysis:
     def __collectSolutions(self):
         solutions = []
         for bnx in self._args.files:
-            solutions.append(Solution(self._args.genome, bnx, self._args))
+            if self._args.use_laplace:
+                solutions.append(LaplaceSolution(self._args.genome, bnx, self._args))
+            elif self._args.disable_camera:
+                solutions.append(NoCameraSolution(self._args.genome, bnx, self._args))
+            elif self._args.fragment_correction:
+                solutions.append(OnlyCorrectionSolution(self._args.genome, bnx, self._args))
+            elif self._args.insertion_correction:
+                solutions.append(InsertionCorrectionSolution(self._args.genome, bnx, self._args))
+            elif self._args.indels_correction:
+                solutions.append(IndelsCorrectionSolution(self._args.genome, bnx, self._args))
+            elif self._args.bezier_correction:
+                solutions.append(BezierCorrectionSolution(self._args.genome, bnx, self._args))
+            elif self._args.indels_sizing_correction:
+                solutions.append(IndelsSizingCorrectionSolution(self._args.genome, bnx, self._args))
+            else:
+                solutions.append(Solution(self._args.genome, bnx, self._args))
         return solutions
 
     """

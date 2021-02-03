@@ -74,7 +74,8 @@ class PhasedResolution(OMGenome):
                 if pi_chr[x] == 0:
                     pi_list[c_id].append(i)
                 
-                pi_chr[x] = 1
+                pi_chr[x] = 1               
+
                 i += 1
 
             pi.append(pi_chr)
@@ -101,15 +102,14 @@ class PhasedResolution(OMGenome):
                     #if pixel is not phase shifted then store i
                     if phased[i] == 0:
                         last_pos = i
-                    #if pixel is phased shifter then store i + 0.5
+                    #if pixel is phased shifted then store i + 0.5
                     else:
                         last_pos = i + 0.5
                     break
 
             #compute all distances
             for i in range(last_ipos+1, len(chromosome)):
-                if chromosome[i] != 0:
-                    last_ipos = i
+                if chromosome[i] != 0:                    
                     daux = None
                     #not a phase shift d*2 => even values of d are without phase shit or with double phase shift, ensure it is integer.
                     if phased[i] == 0:
@@ -131,7 +131,7 @@ class PhasedResolution(OMGenome):
         gap = 0
         j = i+1
         last_one = i
-        while j < len(chromosome) and gap < 1:
+        while j < len(chromosome) and gap < 2:
             if chromosome[j] == 0:
                 gap += 1
             else:
@@ -144,9 +144,18 @@ class PhasedResolution(OMGenome):
             if k < len(chromosome):
                 chromosome[k] = 0
 
-        #set l on average
+        #set l on average        
         d = last_one - i
         i_dh = i + d // 2
+        """Nahodna verze
+        if d % 2 == 0:
+            chromosome[i_dh] = 1
+        else:
+            r = random.random()        
+            if r > 0.5:                
+                chromosome[i_dh + 1] = 0
+        """
+                
         chromosome[i_dh] = 1
         if d % 2 == 0:
             phased[i_dh] = 0
@@ -180,16 +189,26 @@ class PhasedResolution(OMGenome):
     def discreteTransform(self, positions):        
         #pixel image for selected offsets
         d = []
-        
+        mdiv = int(self.bpp / 1)
         for offset in range(self.bpp):
-            if offset % 75 == 0:
+            if offset % mdiv == 0:
+                t0 = time.time()
                 pi, pi_list = self.pixelImage(positions, offset)
-
+                t1 = time.time()
+                #print("pixel image in: ", (t1-t0))
                 phased_i = self.phasedImage(offset)
-
+                t2 = time.time()
+                #print("phased image in: ", (t2-t1))
                 ave_pi = self.averageRuns(pi, phased_i)
-
-                d += self.pixelToDist(ave_pi, phased_i)
+                #self.storePixelDist(ave_pi)
+                t3 = time.time()
+                #print("average image in: ", (t3-t2))
+                d_aux = self.pixelToDist(ave_pi, phased_i)
+                #self.storeDist(d_aux)
+                #d += self.pixelToDist(ave_pi, phased_i)
+                d += d_aux
+                t4 = time.time()
+                #print("to dist in: ", (t4-t3))
             
         return d
 
@@ -210,7 +229,7 @@ class PhasedResolution(OMGenome):
             #no phase shift
             if i % 2 == 0:                
                 #former distance
-                i0 = int(i/2)
+                i0 = int(i/2) - 1
                 for j in range(i0*self.ebpp + 1, (i0+2)*self.ebpp):
                     if j < (i0+1)*self.ebpp:
                         p0ti[j] += self.p0[i]*d/denom
@@ -219,7 +238,7 @@ class PhasedResolution(OMGenome):
                         p0ti[j] += self.p0[i]*d/denom
                         d -= 1
             else:
-                i0 = int(i/2)
+                i0 = int(i/2) - 1
                 j_start = i0 * self.ebpp + 1 - int(self.ebpp/2)
                 j_end = (i0+2)*self.ebpp - int(self.ebpp/2)
                 for j in range(j_start, j_end):
@@ -245,3 +264,39 @@ class PhasedResolution(OMGenome):
                 p1[d1] += p0[i]
 
         return p1
+
+    def storeDist(self, ds):
+        f = 1000*[0]
+
+        for d in ds:
+            if d < 1000:
+                f[d] += 1
+
+        o = open("pixel_dist-ptd.csv","w")
+        for i in range(0,1000):
+            o.write("%d\t%d\n" % (i, f[i]))
+        o.close()
+
+
+    def storePixelDist(self, pi):
+        f = 1000*[0]
+
+        for chr in pi:
+            c_len = len(chr)
+
+            ones = []
+            for i in range(c_len):
+                if chr[i] == 1:
+                    ones.append(i)                    
+        
+            for i in range(len(ones)-1):
+                d = ones[i+1] - ones[i]
+                if d < 1000:
+                    f[d] += 1
+
+        o = open("pixel_dist2.csv","w")
+        for i in range(0,1000):
+            o.write("%d\t%d\n" % (i, f[i]))
+        o.close()
+
+        

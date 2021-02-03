@@ -65,12 +65,13 @@ class InsertionSite(OMGenome):
             lc = len(p1_c) - 1
             p1_a = []
             while i < lc:
-                if p1_c[i] != p1_c[i+1]:
+                if p1_c[i] + 6 < p1_c[i+1]:
                     p1_a.append(p1_c[i])
                 i += 1
                 
             #posledni prvek pridavame vzdy
-            p1_a.append(p1_c[lc])
+            if len(p1_c) > 0:
+                p1_a.append(p1_c[lc])
 
             p1.append(p1_a)
 
