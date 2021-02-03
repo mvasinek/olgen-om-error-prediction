@@ -1,6 +1,8 @@
 from genome import OMGenome
+from multiprocessing import Process
 
 import math
+import os
 import random
 import sys
 
@@ -223,7 +225,35 @@ class MissingSite(OMGenome):
 
         queue.put(p1)
 
+def LoadPds(wrkdir, iterations, step):   
+    if not os.path.exists(wrkdir):
+        return None
+
+    pds = {}
+    for i in range(1, iterations+1):
+        mr = float("%.2f" % (step*i))
+        fpath = wrkdir + "/" + "pd-%.2f.csv" % (mr)
+
+        pd = [0]*2001
+        f = open(fpath, "r")
+        lines = f.readlines()
+
+        for line in lines[1:]:
+            l = line.strip()
+            if len(l) == 0:
+                continue
+
+            v = l.split(';')
+
+            pd[int(v[0])] = float(v[1])
+
+        pds[mr] = pd
+
+    return pds
+
 class EnzymeMissing(MissingSite):
+    pds = LoadPds("pd100", 50, 0.01)
+
     """
     r - enzyme range
     v - missing site ratio, i.e. we expect 10% sites to be missed then v=0.1
@@ -234,17 +264,17 @@ class EnzymeMissing(MissingSite):
 
         self.r = r
         self.v = v
-        self.v_scaled = 0
 
-        #self.v_scaled = self._correction()
-        #print(self.v_scaled)
+    @staticmethod
+    def ReloadPDS():
+        EnzymeMissing.pds = LoadPds("pd100", 50, 0.01)
 
     @staticmethod
     def locate(chr_pos, r):
         if r < chr_pos[0]:
             return (-1,0)
         elif r > chr_pos[-1]:
-            return (len(chr_pos), -1)
+            return (len(chr_pos)-1, -1)
 
         left = 0
         right = len(chr_pos) - 1
@@ -252,7 +282,7 @@ class EnzymeMissing(MissingSite):
         while left + 1 != right and right > 0 and left < len(chr_pos)-1:
             mid = int((left+right)/2)
             mid_l = mid
-            mid_r = mid+1            
+            mid_r = mid+1
 
             if chr_pos[mid_l] <= r and r <= chr_pos[mid_r]:
                 return (mid_l, mid_r)
@@ -264,146 +294,213 @@ class EnzymeMissing(MissingSite):
 
         return (left, right)
 
-    def processOne(self, queue):
+    def processOne(self, queue):  
+        p1 = []
+        for _ in range(len(self.pos)):
+            p1.append([])
+
+        chr_id = 0
+        for sites in self.pos:
+            for i in range(len(sites)):
+                davg = int(self.__dAvg(sites, i))
+                digest_prob = EnzymeMissing.pds[self.v][davg]
+                rn = random.random()
+
+                if rn <= digest_prob:
+                    #digested
+                    p1[chr_id].append(sites[i])
+
+            chr_id += 1
+
+        return p1
+        
+    def __dAvg(self, sites, site_id):
+        if site_id == 0:
+            dl = 2*self.r
+        else:
+            dl = sites[site_id] - sites[site_id-1]
+        if site_id+1 == len(sites):
+            dr = 2*self.r
+        else:
+            dr = sites[site_id+1] - sites[site_id]
+                    
+        davg = 2*self.r
+        if dl <= 2*self.r and dr <= 2*self.r:
+            davg = (dl+dr)/2
+        elif dl <= 2*self.r:
+            davg = (dl+2*self.r)/2
+        elif dr <= 2*self.r:
+            davg = (dr+2*self.r)/2
+
+        return davg    
+    
+    def experimentalProcessOne(self):
         tot = self.labelsCount()
         eMiss = tot*self.v
+        eDig = int(tot-eMiss)
+        digested = []
+        for i in range(24):
+            digested.append({})
+
+        f_d = [0]*(2*self.r+1)
 
         i = 0
+        dig = 0
         chr_ids = list(range(0,24))
-
-        while i < eMiss:
+        chr_id_random = random.choices(chr_ids, self.chrlen,k=int(eDig+1))
+        while dig < eDig:
             #select chr
-            chr_id = random.choices(chr_ids, self.chrlen,k=1)[0]
-            
+            chr_id = chr_id_random[i % (eDig+1)]
+            #select binding position
             r = random.randint(1,self.chrlen[chr_id]-1)
 
             #binary search
             dl_idx, dr_idx = EnzymeMissing.locate(self.pos[chr_id], r)
 
             if dl_idx == -1:
-                #self.pos[chr_id].remove(self.pos[chr_id][0])
-                del self.pos[chr_id][0]
-                #self.pos[chr_id].pop(0)
+                if self.pos[chr_id][0] - self.r > r and not 0 in digested[chr_id]:
+                    digested[chr_id][0] = True
+                    dig += 1       
             elif dr_idx == -1:
-                #self.pos[chr_id].remove(self.pos[chr_id][-1])
-                del self.pos[chr_id][-1]
-                #self.pos[chr_id].pop(-1)
+                if self.pos[chr_id][-1] + self.r > r and not len(self.pos[chr_id])-1 in digested[chr_id]:
+                    digested[chr_id][len(self.pos)-1] = True
+                    dig += 1                    
             else:
                 dl = r - self.pos[chr_id][dl_idx]
                 dr = self.pos[chr_id][dr_idx] - r
 
                 if dl < dr:
                     #odstran site na pozici j-1
-                    #self.pos[chr_id].remove(self.pos[chr_id][dl_idx])
-                    del self.pos[chr_id][dl_idx]
-                    #self.pos[chr_id].pop(dl_idx)
+                    if dl < self.r and not dl_idx in digested[chr_id]:
+                        digested[chr_id][dl_idx] = True
+                        davg = self.__dAvg(self.pos[chr_id], dl_idx)
+                        f_d[int(davg)] += 1                        
+                        dig += 1                    
                 else:
-                    #self.pos[chr_id].remove(self.pos[chr_id][dr_idx])
-                    del self.pos[chr_id][dr_idx]
-                    #self.pos[chr_id].pop(dr_idx)
-
-            """
-            Working but slow
-            #najdi nejblizsi a odstran jej
-            for j in range(len(self.pos[chr_id])):
-                if self.pos[chr_id][j] > r:
-                    #j-1 pozice prvniho mensiho
-                    #j pozice prniho vetsiho
-                    dl = 0
-                    if j-1 >= 0:
-                        dl = r - self.pos[chr_id][j-1]
-
-                    dr = self.pos[chr_id][-1]
-                    if j < self.chrlen[chr_id]:
-                        dr = self.pos[chr_id][j]
-
-                    if dl < dr:
-                        #odstran site na pozici j-1
-                        self.pos[chr_id].remove(self.pos[chr_id][j-1])
-                    else:
-                        self.pos[chr_id].remove(self.pos[chr_id][j])
-
-                    break
-            """
+                    if dr < self.r and not dr_idx in digested[chr_id]:
+                        digested[chr_id][dr_idx] = True
+                        davg = self.__dAvg(self.pos[chr_id], dr_idx)                        
+                        f_d[int(davg)] += 1
+                        dig += 1     
 
             i += 1
 
-        queue.put(self.pos)
+        #print('digestion completed')
+        f_all = [0]*(2*self.r+1)
 
-    def correction(self):
-        #compute p(average distance) distribution
-        max_d = 4*self.r
-        p_ave_d = [0]*(4*self.r + 1)
+        for sites in self.pos:
+            for site_id in range(1,len(sites)-1):
+                davg = int(self.__dAvg(sites, site_id))                
+                f_all[davg] += 1
 
-        tot = 0
+        pd = [0]*(2*self.r+1)
+        for i in range(2*self.r+1):            
+            if f_all[i] == 0:
+                pd[i] = 0
+            else:
+                pd[i] = f_d[i] / f_all[i]
 
-        for chr_p in self.pos:
-            tot += len(chr_p)
-            if len(chr_p) == 0:
-                break
+        return pd
 
-            if len(chr_p) == 1:
-                p_ave_d[max_d] += 1
-                break
+    @staticmethod
+    def NoLabelingPortion(sites, chrlen, erange):
+        no_lab = 0
 
-            for i in range(0, len(chr_p)):
-                ave_dist = 0
+        chr_id = 0
+        for chr_pos in sites:
+            cur_pos = 0
 
-                if i == 0:
-                    ave_dist = chr_p[i+1]-chr_p[i] + 2*self.r
-                elif i == len(chr_p) - 1:
-                    ave_dist = chr_p[i]-chr_p[i-1] + 2*self.r
-                else:
-                    ave_dist = chr_p[i]-chr_p[i-1] + chr_p[i+1]-chr_p[i]
+            for pos in chr_pos:
+                if pos - erange > cur_pos:
+                    no_lab += (pos - erange) - cur_pos
 
-                if ave_dist > 4*self.r:
-                    ave_dist = 4*self.r
+                cur_pos = pos + erange
 
-                p_ave_d[int(ave_dist)] += 1
+            #add the rest of chromosome
+            if cur_pos < chrlen[chr_id]:
+                no_lab += chrlen[chr_id] - cur_pos
 
-        #compute scale factor
-        scale = 0
-        #f = open("p_ave_d.csv","w")
-        for i in range(4*self.r+1):
-            p_ave_d[i] /= tot
-            #f.write("%d\t%.8f\t%.8f\t%.8f\n" % (i, p_ave_d[i], i/(4*self.r), p_ave_d[i]*(i/(4*self.r))))
-            scale += p_ave_d[i]*(i/(4*self.r))
-        #f.close()
+            chr_id += 1            
 
-        #print("scale: ", self.v / scale)
+        gsize = 0
+        for l in chrlen:
+            gsize += l
 
-        self.v_scaled = self.v / scale
+        return (no_lab, no_lab/gsize)
 
+    @staticmethod
+    def GeneratePDS(genome, iterations):
+        try:
+            os.mkdir("pd100")
+        except:
+            print("unable to create pd100 directory")
+            exit(1)
 
-    def storePD(self):
-        f = open("pd.csv","w")
+        tot = 50
+        cur = 0
+        for i in range(1,51):
+            mr = 0.01*i
+            EnzymeMissing.GeneratePD(genome, mr, 1000, iterations)
+            cur += 1            
+            print("Generated %d/%d" % (cur,tot))
 
-        for digested_part in range(4*self.r):
-            missed = 4*self.r - digested_part
+    @staticmethod
+    def GeneratePD(genome, mr, e, iterations):
+        pd = [0]*(2*e+1)
+        for _ in range(iterations):
+            em = EnzymeMissing(None, 1000, mr)
+            em.pos = genome.pos
+            em.chrlen = genome.chrlen
 
-            p_miss = self.v_scaled * missed / (4*self.r) #p_digested    
-            p_digested = 1-p_miss
+            one_pd = em.experimentalProcessOne()
 
-            f.write("%d\t%.8f\n" % (int(digested_part/2), p_digested))
+            for i in range(len(one_pd)):
+                pd[i] += one_pd[i]
 
+        for i in range(len(pd)):
+            pd[i] /= iterations
+
+        #store pd
+        fpath = "pd100/pd-%.2f.csv" % (mr)
+        f = open(fpath,"w")
+        f.write("Average Distance; Digestion Probability\n")
+        for i in range(len(pd)):
+            f.write("%d;%.5f\n" % (i, pd[i]))
         f.close()
 
-    def digested(self, dl, dr):
-        if dl > 2*self.r:
-            dl = 2*self.r
-        if dr > 2*self.r:
-            dr = 2*self.r
+        print("PD generation finished: %.2f" % mr)
 
-        sumd = (4*self.r) - (dl + dr)/2
 
-        p_miss = self.v_scaled * sumd / (4*self.r) #p_digested
-        p_d = 1 - p_miss
-        rd = random.random()
+"""
+omg = OMGenome(sys.argv[1])
+iterations = int(sys.argv[2])
 
-        if rd < p_d:
-            return True
+ps = []
+for i in range(1,51):
+    mr = 0.01*i
 
-        return False
+    p = Process(target=EnzymeMissing.GeneratePD, args=(omg, mr, 1000, iterations))
+
+    ps.append(p)
+
+for p in ps:
+    p.start()
+
+for p in ps:
+    p.join()
+"""
+
+"""
+f = open("no-label-part-genome.csv", "w")
+for e in range(1,201):
+    erange = e*50
+
+    f.write("%d;%3f\n" % (erange, EnzymeMissing.NoLabelingPortion(omg.pos, omg.chrlen, erange)[1]))
+
+f.close()
+"""
+
+
 
 #em = EnzymeMissing(sys.argv[1], 1000, 0.1)
 #em.storePD()

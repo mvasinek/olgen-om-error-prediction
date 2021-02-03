@@ -13,14 +13,15 @@ class OMGenome:
         self.genome_path = g_path
         self.chrlen = 24*[0]
         self.pos = self.parsePositions()
-        d = self.convertToDist(self.pos)
+        
+        d = self.convertToDist(self.pos)        
         self.dlen = len(d)
         #self.max_d = self.maxDistance(self.d)
         #self.f0 = self.distF(self.d, self.max_d)
-        keys, f0 = self.distF2(d)
+        keys, f0 = self.distF2(d)        
         #self.p0 = self.distP(self.f0, self.max_d, self.dlen)
         self.p0 = self.distP2(keys, f0, self.dlen)
-        self.portions = self.weightedLen2(keys, f0)
+        #self.portions = self.weightedLen2(keys, f0)        
 
     """
     Parse positions from reference cmap file.
@@ -47,8 +48,8 @@ class OMGenome:
                 pos.append([])
                 chr_id += 1
                 continue
-
-            pos[chr_id].append(int(float(line_values[5])))
+            else:
+                pos[chr_id].append(int(float(line_values[5])))
 
         return pos
 
@@ -69,6 +70,12 @@ class OMGenome:
         for chrpos in self.pos:
             lc += len(chrpos)
         return lc
+
+    def insertionRate(self, fpr):
+        gsize = self.genomeSize()
+        lc = self.labelsCount()
+
+        return (lc*fpr)/(gsize-lc)
 
     """
     Converts positions of restriction sites into distribution of fragment lengths.
@@ -198,7 +205,10 @@ class OMGenome:
     """
     def weightedLen(self, genome):
         #unique non-zero intervals
-        f0 = genome.f0
+        #f0 = genome.f0
+        d = self.convertToDist(self.pos)
+        max_d = self.maxDistance(d)
+        f0 = self.distF(d, max_d)
         uniq_f = []
 
         for l in range(len(f0)):
